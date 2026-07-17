@@ -122,3 +122,16 @@ export function pointsStandings(game: Game) {
     return a.totalScore - b.totalScore;
   });
 }
+
+export function createRematch(game: Game): Game {
+  return {
+    ...game,
+    id: generateId(),
+    name: game.name.endsWith(' (Rematch)') ? game.name : `${game.name} (Rematch)`,
+    players: game.players.map((p) => ({ ...p, totalScore: 0, active: true })),
+    rounds: [],
+    status: 'active',
+    createdAt: Date.now(),
+    completedAt: undefined,
+  };
+}
