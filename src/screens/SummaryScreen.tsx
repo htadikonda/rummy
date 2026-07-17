@@ -8,6 +8,7 @@ import { getGame, saveGame } from '../storage/gameStorage';
 import {
   computeCashSettlement,
   computeSettlementPayments,
+  createRematch,
   pointsStandings,
 } from '../utils/scoring';
 import { colors } from '../theme/colors';
@@ -43,6 +44,12 @@ export default function SummaryScreen({ navigation, route }: Props) {
     await saveGame(updated);
   };
 
+  const playAgain = async () => {
+    const rematch = createRematch(game);
+    await saveGame(rematch);
+    navigation.replace('GameBoard', { gameId: rematch.id });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
@@ -56,9 +63,14 @@ export default function SummaryScreen({ navigation, route }: Props) {
         <PointsSummary game={game} />
       )}
 
-      <Pressable style={styles.homeButton} onPress={() => navigation.popToTop()}>
-        <Text style={styles.homeButtonText}>Back to Home</Text>
-      </Pressable>
+      <View style={styles.footerButtons}>
+        <Pressable style={styles.playAgainButton} onPress={playAgain}>
+          <Text style={styles.playAgainButtonText}>Play Again · Same Players</Text>
+        </Pressable>
+        <Pressable style={styles.homeButton} onPress={() => navigation.popToTop()}>
+          <Text style={styles.homeButtonText}>Back to Home</Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
@@ -228,12 +240,19 @@ const styles = StyleSheet.create({
   },
   winnerBannerLabel: { fontSize: 14, fontWeight: '700', color: '#062117' },
   winnerBannerName: { fontSize: 22, fontWeight: '800', color: '#062117', marginTop: 4 },
+  footerButtons: { marginVertical: 16, gap: 10 },
+  playAgainButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  playAgainButtonText: { color: '#062117', fontSize: 16, fontWeight: '700' },
   homeButton: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
-    marginVertical: 16,
     borderWidth: 1,
     borderColor: colors.border,
   },
