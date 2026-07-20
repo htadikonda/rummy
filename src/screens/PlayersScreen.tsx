@@ -16,6 +16,7 @@ import { RootStackParamList } from '../navigation/types';
 import { Game, MAX_PLAYERS, MIN_PLAYERS_TO_START, Player } from '../types/game';
 import { getGame, saveGame } from '../storage/gameStorage';
 import { generateId } from '../utils/id';
+import { isEliminated } from '../utils/scoring';
 import { colors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Players'>;
@@ -66,6 +67,14 @@ export default function PlayersScreen({ navigation, route }: Props) {
           persist({ ...game, players: game.players.filter((p) => p.id !== playerId) }),
       },
     ]);
+  };
+
+  const toggleActive = (player: Player) => {
+    const nextActive = !player.active;
+    persist({
+      ...game,
+      players: game.players.map((p) => (p.id === player.id ? { ...p, active: nextActive } : p)),
+    });
   };
 
   const isSetup = game.status === 'setup';
@@ -127,17 +136,33 @@ export default function PlayersScreen({ navigation, route }: Props) {
           data={game.players}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item, index }) => (
-            <View style={styles.playerRow}>
-              <View style={styles.playerBadge}>
-                <Text style={styles.playerBadgeText}>{index + 1}</Text>
+          renderItem={({ item, index }) => {
+            const eliminated = !isSetup && !item.active && isEliminated(game, item);
+            const left = !isSetup && !item.active && !eliminated;
+            return (
+              <View style={[styles.playerRow, !item.active && styles.playerRowInactive]}>
+                <View style={styles.playerBadge}>
+                  <Text style={styles.playerBadgeText}>{index + 1}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.playerName}>{item.name}</Text>
+                  {(eliminated || left) && (
+                    <Text style={styles.statusText}>{eliminated ? 'Eliminated' : 'Left game'}</Text>
+                  )}
+                </View>
+                <View style={styles.rowActions}>
+                  {!isSetup && !eliminated && (
+                    <Pressable onPress={() => toggleActive(item)} hitSlop={10}>
+                      <Text style={styles.leaveText}>{item.active ? 'Leave' : 'Rejoin'}</Text>
+                    </Pressable>
+                  )}
+                  <Pressable onPress={() => removePlayer(item.id)} hitSlop={10}>
+                    <Text style={styles.removeText}>Remove</Text>
+                  </Pressable>
+                </View>
               </View>
-              <Text style={styles.playerName}>{item.name}</Text>
-              <Pressable onPress={() => removePlayer(item.id)} hitSlop={10}>
-                <Text style={styles.removeText}>Remove</Text>
-              </Pressable>
-            </View>
-          )}
+            );
+          }}
           ListEmptyComponent={
             <Text style={styles.helper}>No players yet. Add the first one above.</Text>
           }
@@ -199,7 +224,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   playerBadgeText: { color: colors.textMuted, fontWeight: '700', fontSize: 12 },
-  playerName: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '600' },
+  playerRowInactive: { opacity: 0.6 },
+  playerName: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  statusText: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  rowActions: { flexDirection: 'row', gap: 16, alignItems: 'center' },
+  leaveText: { color: colors.warning, fontSize: 13, fontWeight: '600' },
   removeText: { color: colors.danger, fontSize: 13, fontWeight: '600' },
   startButton: {
     backgroundColor: colors.primary,

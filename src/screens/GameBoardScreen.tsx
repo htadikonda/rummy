@@ -6,6 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { Game, Player } from '../types/game';
 import { getGame, saveGame } from '../storage/gameStorage';
+import { isEliminated } from '../utils/scoring';
 import { colors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GameBoard'>;
@@ -91,7 +92,7 @@ export default function GameBoardScreen({ navigation, route }: Props) {
         keyExtractor={(item) => item.id}
         style={{ maxHeight: '38%' }}
         contentContainerStyle={{ paddingBottom: 12 }}
-        renderItem={({ item, index }) => <StandingRow player={item} rank={index + 1} mode={game.mode} />}
+        renderItem={({ item, index }) => <StandingRow player={item} rank={index + 1} game={game} />}
       />
 
       <Text style={styles.sectionLabel}>Rounds ({game.rounds.length})</Text>
@@ -147,21 +148,18 @@ export default function GameBoardScreen({ navigation, route }: Props) {
   );
 }
 
-function StandingRow({
-  player,
-  rank,
-  mode,
-}: {
-  player: Player;
-  rank: number;
-  mode: Game['mode'];
-}) {
+function StandingRow({ player, rank, game }: { player: Player; rank: number; game: Game }) {
+  const statusLabel = !player.active
+    ? isEliminated(game, player)
+      ? '  · eliminated'
+      : '  · left'
+    : '';
   return (
     <View style={[styles.standingRow, !player.active && styles.standingRowEliminated]}>
       <Text style={styles.standingRank}>{rank}</Text>
       <Text style={[styles.standingName, !player.active && styles.eliminatedText]}>
         {player.name}
-        {!player.active && mode === 'points' ? '  · eliminated' : ''}
+        {statusLabel}
       </Text>
       <Text
         style={[
