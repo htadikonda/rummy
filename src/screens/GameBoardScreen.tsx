@@ -56,12 +56,24 @@ export default function GameBoardScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Text style={styles.title}>{game.name}</Text>
-        <Text style={styles.subtitle}>
-          {game.mode === 'cash'
-            ? `Cash Game · $${game.dollarPerPoint}/point`
-            : `Points Game · max ${game.maxPoints}`}
-        </Text>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>{game.name}</Text>
+            <Text style={styles.subtitle}>
+              {game.mode === 'cash'
+                ? `Cash Game · $${game.dollarPerPoint}/point`
+                : `Points Game · max ${game.maxPoints}`}
+            </Text>
+          </View>
+          {game.status !== 'completed' && (
+            <Pressable
+              style={styles.playersButton}
+              onPress={() => navigation.navigate('Players', { gameId: game.id })}
+            >
+              <Text style={styles.playersButtonText}>Players ({game.players.length})</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {game.status === 'completed' && (
@@ -169,6 +181,16 @@ const styles = StyleSheet.create({
   header: { marginTop: 12, marginBottom: 12 },
   title: { fontSize: 22, fontWeight: '800', color: colors.text },
   subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  playersButton: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  playersButtonText: { color: colors.text, fontSize: 12, fontWeight: '700' },
   completeBanner: {
     backgroundColor: colors.primaryDark,
     borderRadius: 12,

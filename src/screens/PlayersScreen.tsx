@@ -68,6 +68,8 @@ export default function PlayersScreen({ navigation, route }: Props) {
     ]);
   };
 
+  const isSetup = game.status === 'setup';
+
   const startGame = async () => {
     if (game.players.length < MIN_PLAYERS_TO_START) {
       Alert.alert('Need more players', `Add at least ${MIN_PLAYERS_TO_START} players to start.`);
@@ -76,6 +78,10 @@ export default function PlayersScreen({ navigation, route }: Props) {
     const updated: Game = { ...game, status: 'active' };
     await persist(updated);
     navigation.replace('GameBoard', { gameId: game.id });
+  };
+
+  const done = () => {
+    navigation.goBack();
   };
 
   return (
@@ -137,8 +143,8 @@ export default function PlayersScreen({ navigation, route }: Props) {
           }
         />
 
-        <Pressable style={styles.startButton} onPress={startGame}>
-          <Text style={styles.startButtonText}>Start Game</Text>
+        <Pressable style={styles.startButton} onPress={isSetup ? startGame : done}>
+          <Text style={styles.startButtonText}>{isSetup ? 'Start Game' : 'Done'}</Text>
         </Pressable>
       </KeyboardAvoidingView>
     </SafeAreaView>
