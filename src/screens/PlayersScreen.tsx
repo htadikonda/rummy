@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +16,7 @@ import { Game, MAX_PLAYERS, MIN_PLAYERS_TO_START, Player } from '../types/game';
 import { getGame, saveGame } from '../storage/gameStorage';
 import { generateId } from '../utils/id';
 import { isEliminated } from '../utils/scoring';
+import { confirmAction, notifyAction } from '../utils/dialog';
 import { colors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Players'>;
@@ -49,7 +49,7 @@ export default function PlayersScreen({ navigation, route }: Props) {
     const trimmed = name.trim();
     if (!trimmed) return;
     if (atMax) {
-      Alert.alert('Max players reached', 'Remove a player before adding another.');
+      await notifyAction('Max players reached', 'Remove a player before adding another.');
       return;
     }
     const player: Player = { id: generateId(), name: trimmed, active: true, totalScore: 0 };
@@ -57,16 +57,10 @@ export default function PlayersScreen({ navigation, route }: Props) {
     setName('');
   };
 
-  const removePlayer = (playerId: string) => {
-    Alert.alert('Remove player?', undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: () =>
-          persist({ ...game, players: game.players.filter((p) => p.id !== playerId) }),
-      },
-    ]);
+  const removePlayer = async (playerId: string) => {
+    const ok = await confirmAction({ title: 'Remove player?', confirmLabel: 'Remove' });
+    if (!ok) return;
+    persist({ ...game, players: game.players.filter((p) => p.id !== playerId) });
   };
 
   const toggleActive = (player: Player) => {
@@ -81,7 +75,7 @@ export default function PlayersScreen({ navigation, route }: Props) {
 
   const startGame = async () => {
     if (game.players.length < MIN_PLAYERS_TO_START) {
-      Alert.alert('Need more players', `Add at least ${MIN_PLAYERS_TO_START} players to start.`);
+      await notifyAction('Need more players', `Add at least ${MIN_PLAYERS_TO_START} players to start.`);
       return;
     }
     const updated: Game = { ...game, status: 'active' };

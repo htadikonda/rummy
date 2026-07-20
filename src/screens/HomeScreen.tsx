@@ -1,18 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import {
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { Game } from '../types/game';
 import { deleteGame, listGames } from '../storage/gameStorage';
+import { confirmAction } from '../utils/dialog';
 import { colors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
@@ -42,18 +36,15 @@ export default function HomeScreen({ navigation }: Props) {
     }
   };
 
-  const confirmDelete = (game: Game) => {
-    Alert.alert('Delete game?', `This removes "${game.name}" and all its rounds.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteGame(game.id);
-          setGames((prev) => prev.filter((g) => g.id !== game.id));
-        },
-      },
-    ]);
+  const confirmDelete = async (game: Game) => {
+    const ok = await confirmAction({
+      title: 'Delete game?',
+      message: `This removes "${game.name}" and all its rounds.`,
+      confirmLabel: 'Delete',
+    });
+    if (!ok) return;
+    await deleteGame(game.id);
+    setGames((prev) => prev.filter((g) => g.id !== game.id));
   };
 
   return (

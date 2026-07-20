@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,6 +15,7 @@ import { RootStackParamList } from '../navigation/types';
 import { Game } from '../types/game';
 import { getGame, saveGame } from '../storage/gameStorage';
 import { applyRound } from '../utils/scoring';
+import { notifyAction } from '../utils/dialog';
 import { colors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddRound'>;
@@ -72,9 +72,8 @@ export default function AddRoundScreen({ navigation, route }: Props) {
     await saveGame(updated);
 
     if (updated.status === 'completed') {
-      Alert.alert('Game complete', 'Only one player remains. Showing final results.', [
-        { text: 'OK', onPress: () => navigation.replace('Summary', { gameId: game.id }) },
-      ]);
+      await notifyAction('Game complete', 'Only one player remains. Showing final results.');
+      navigation.replace('Summary', { gameId: game.id });
       return;
     }
     navigation.goBack();

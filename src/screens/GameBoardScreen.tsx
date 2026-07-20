@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -7,6 +7,7 @@ import { RootStackParamList } from '../navigation/types';
 import { Game, Player } from '../types/game';
 import { getGame, saveGame } from '../storage/gameStorage';
 import { isEliminated } from '../utils/scoring';
+import { confirmAction } from '../utils/dialog';
 import { colors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GameBoard'>;
@@ -40,18 +41,16 @@ export default function GameBoardScreen({ navigation, route }: Props) {
     return game.mode === 'cash' ? b.totalScore - a.totalScore : a.totalScore - b.totalScore;
   });
 
-  const endCashGame = () => {
-    Alert.alert('End game and settle up?', 'This locks in the current totals.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'End & Settle',
-        onPress: async () => {
-          const updated: Game = { ...game, status: 'completed', completedAt: Date.now() };
-          await saveGame(updated);
-          navigation.replace('Summary', { gameId: game.id });
-        },
-      },
-    ]);
+  const endCashGame = async () => {
+    const ok = await confirmAction({
+      title: 'End game and settle up?',
+      message: 'This locks in the current totals.',
+      confirmLabel: 'End & Settle',
+    });
+    if (!ok) return;
+    const updated: Game = { ...game, status: 'completed', completedAt: Date.now() };
+    await saveGame(updated);
+    navigation.replace('Summary', { gameId: game.id });
   };
 
   return (
