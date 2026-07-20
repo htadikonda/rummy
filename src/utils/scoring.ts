@@ -1,5 +1,9 @@
-import { Game, Round, RoundEntry } from '../types/game';
+import { Game, Player, Round, RoundEntry } from '../types/game';
 import { generateId } from './id';
+
+export function isEliminated(game: Game, player: Player): boolean {
+  return game.mode === 'points' && game.maxPoints != null && player.totalScore >= game.maxPoints;
+}
 
 export interface RoundInput {
   winnerId: string;

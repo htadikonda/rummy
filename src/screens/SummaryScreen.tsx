@@ -9,6 +9,7 @@ import {
   computeCashSettlement,
   computeSettlementPayments,
   createRematch,
+  isEliminated,
   pointsStandings,
 } from '../utils/scoring';
 import { colors } from '../theme/colors';
@@ -168,7 +169,7 @@ function PointsSummary({ game }: { game: Game }) {
           <View style={[styles.row, !item.active && { opacity: 0.5 }]}>
             <Text style={styles.rowName}>
               {index + 1}. {item.name}
-              {!item.active ? '  · eliminated' : ''}
+              {!item.active ? (isEliminated(game, item) ? '  · eliminated' : '  · left') : ''}
             </Text>
             <Text style={styles.rowPoints}>{item.totalScore} pts</Text>
           </View>

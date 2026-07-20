@@ -6,6 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { Game, Player } from '../types/game';
 import { getGame, saveGame } from '../storage/gameStorage';
+import { isEliminated } from '../utils/scoring';
 import { colors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GameBoard'>;
@@ -56,12 +57,24 @@ export default function GameBoardScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Text style={styles.title}>{game.name}</Text>
-        <Text style={styles.subtitle}>
-          {game.mode === 'cash'
-            ? `Cash Game · $${game.dollarPerPoint}/point`
-            : `Points Game · max ${game.maxPoints}`}
-        </Text>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>{game.name}</Text>
+            <Text style={styles.subtitle}>
+              {game.mode === 'cash'
+                ? `Cash Game · $${game.dollarPerPoint}/point`
+                : `Points Game · max ${game.maxPoints}`}
+            </Text>
+          </View>
+          {game.status !== 'completed' && (
+            <Pressable
+              style={styles.playersButton}
+              onPress={() => navigation.navigate('Players', { gameId: game.id })}
+            >
+              <Text style={styles.playersButtonText}>Players ({game.players.length})</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {game.status === 'completed' && (
@@ -79,7 +92,7 @@ export default function GameBoardScreen({ navigation, route }: Props) {
         keyExtractor={(item) => item.id}
         style={{ maxHeight: '38%' }}
         contentContainerStyle={{ paddingBottom: 12 }}
-        renderItem={({ item, index }) => <StandingRow player={item} rank={index + 1} mode={game.mode} />}
+        renderItem={({ item, index }) => <StandingRow player={item} rank={index + 1} game={game} />}
       />
 
       <Text style={styles.sectionLabel}>Rounds ({game.rounds.length})</Text>
@@ -135,21 +148,18 @@ export default function GameBoardScreen({ navigation, route }: Props) {
   );
 }
 
-function StandingRow({
-  player,
-  rank,
-  mode,
-}: {
-  player: Player;
-  rank: number;
-  mode: Game['mode'];
-}) {
+function StandingRow({ player, rank, game }: { player: Player; rank: number; game: Game }) {
+  const statusLabel = !player.active
+    ? isEliminated(game, player)
+      ? '  · eliminated'
+      : '  · left'
+    : '';
   return (
     <View style={[styles.standingRow, !player.active && styles.standingRowEliminated]}>
       <Text style={styles.standingRank}>{rank}</Text>
       <Text style={[styles.standingName, !player.active && styles.eliminatedText]}>
         {player.name}
-        {!player.active && mode === 'points' ? '  · eliminated' : ''}
+        {statusLabel}
       </Text>
       <Text
         style={[
@@ -169,6 +179,16 @@ const styles = StyleSheet.create({
   header: { marginTop: 12, marginBottom: 12 },
   title: { fontSize: 22, fontWeight: '800', color: colors.text },
   subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  playersButton: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  playersButtonText: { color: colors.text, fontSize: 12, fontWeight: '700' },
   completeBanner: {
     backgroundColor: colors.primaryDark,
     borderRadius: 12,
