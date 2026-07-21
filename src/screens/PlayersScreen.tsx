@@ -61,6 +61,7 @@ export default function PlayersScreen({ navigation, route }: Props) {
       name: trimmed,
       active: true,
       totalScore: startScore,
+      buyIns: 1,
     };
     await persist({ ...game, players: [...game.players, player] });
     setName('');
@@ -95,7 +96,9 @@ export default function PlayersScreen({ navigation, route }: Props) {
       persist({
         ...game,
         players: game.players.map((p) =>
-          p.id === player.id ? { ...p, active: true, totalScore: rejoinScore } : p
+          p.id === player.id
+            ? { ...p, active: true, totalScore: rejoinScore, buyIns: p.buyIns + 1 }
+            : p
         ),
       });
       return;
@@ -184,6 +187,12 @@ export default function PlayersScreen({ navigation, route }: Props) {
                   <Text style={styles.playerName}>{item.name}</Text>
                   {(eliminated || left) && (
                     <Text style={styles.statusText}>{eliminated ? 'Eliminated' : 'Left game'}</Text>
+                  )}
+                  {game.mode === 'points' && game.buyIn != null && game.buyIn > 0 && (
+                    <Text style={styles.statusText}>
+                      {item.buyIns} buy-in{item.buyIns === 1 ? '' : 's'} · $
+                      {(item.buyIns * game.buyIn).toFixed(2)}
+                    </Text>
                   )}
                 </View>
                 <View style={styles.rowActions}>

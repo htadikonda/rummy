@@ -147,7 +147,7 @@ export function createRematch(game: Game): Game {
     ...game,
     id: generateId(),
     name: game.name.endsWith(' (Rematch)') ? game.name : `${game.name} (Rematch)`,
-    players: game.players.map((p) => ({ ...p, totalScore: 0, active: true })),
+    players: game.players.map((p) => ({ ...p, totalScore: 0, active: true, buyIns: 1 })),
     rounds: [],
     status: 'active',
     createdAt: Date.now(),

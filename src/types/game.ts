@@ -7,6 +7,7 @@ export interface Player {
   name: string;
   active: boolean;
   totalScore: number;
+  buyIns: number;
 }
 
 export interface RoundEntry {
@@ -30,6 +31,7 @@ export interface Game {
   dropPoints?: number;
   middleDropPoints?: number;
   fullCountPoints?: number;
+  buyIn?: number;
   dollarPerPoint?: number;
   players: Player[];
   rounds: Round[];

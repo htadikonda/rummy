@@ -33,6 +33,7 @@ export default function HostGameScreen({ navigation }: Props) {
   const [dropPoints, setDropPoints] = useState(String(DEFAULT_DROP_POINTS));
   const [middleDropPoints, setMiddleDropPoints] = useState(String(DEFAULT_MIDDLE_DROP_POINTS));
   const [fullCountPoints, setFullCountPoints] = useState(String(DEFAULT_FULL_COUNT_POINTS));
+  const [buyIn, setBuyIn] = useState('0');
   const [dollarPerPoint, setDollarPerPoint] = useState('1');
   const [error, setError] = useState<string | null>(null);
 
@@ -53,6 +54,11 @@ export default function HostGameScreen({ navigation }: Props) {
           return;
         }
       }
+      const parsedBuyIn = Number(buyIn);
+      if (!Number.isFinite(parsedBuyIn) || parsedBuyIn < 0) {
+        setError('Enter a valid Buy-In value.');
+        return;
+      }
     } else {
       const parsed = Number(dollarPerPoint);
       if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -69,6 +75,7 @@ export default function HostGameScreen({ navigation }: Props) {
       dropPoints: mode === 'points' ? Number(dropPoints) : undefined,
       middleDropPoints: mode === 'points' ? Number(middleDropPoints) : undefined,
       fullCountPoints: mode === 'points' ? Number(fullCountPoints) : undefined,
+      buyIn: mode === 'points' ? Number(buyIn) : undefined,
       dollarPerPoint: mode === 'cash' ? Number(dollarPerPoint) : undefined,
       players: [],
       rounds: [],
@@ -122,6 +129,20 @@ export default function HostGameScreen({ navigation }: Props) {
 
           {mode === 'points' ? (
             <View>
+              <Text style={styles.label}>Buy-In ($)</Text>
+              <Text style={styles.helper}>
+                Amount each player pays to enter. A player who's eliminated and rejoins pays
+                another buy-in.
+              </Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="decimal-pad"
+                value={buyIn}
+                onChangeText={setBuyIn}
+                placeholder="0"
+                placeholderTextColor={colors.textMuted}
+              />
+
               <Text style={styles.label}>Default Points</Text>
               <Text style={styles.helper}>
                 Game For is the total at which a player is eliminated. Drop, Middle Drop, and
