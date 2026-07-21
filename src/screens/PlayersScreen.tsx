@@ -15,7 +15,7 @@ import { RootStackParamList } from '../navigation/types';
 import { Game, MAX_PLAYERS, MIN_PLAYERS_TO_START, Player } from '../types/game';
 import { getGame, saveGame } from '../storage/gameStorage';
 import { generateId } from '../utils/id';
-import { isEliminated } from '../utils/scoring';
+import { canRejoinAfterElimination, isEliminated, nextJoinScore } from '../utils/scoring';
 import { confirmAction, notifyAction } from '../utils/dialog';
 import { colors } from '../theme/colors';
 
@@ -40,6 +40,8 @@ export default function PlayersScreen({ navigation, route }: Props) {
   }
 
   const atMax = game.players.length >= MAX_PLAYERS;
+  const isSetup = game.status === 'setup';
+  const canRemove = isSetup || game.mode !== 'points';
 
   const persist = async (updated: Game) => {
     setGame(updated);
@@ -53,7 +55,13 @@ export default function PlayersScreen({ navigation, route }: Props) {
       await notifyAction('Max players reached', 'Remove a player before adding another.');
       return;
     }
-    const player: Player = { id: generateId(), name: trimmed, active: true, totalScore: 0 };
+    const startScore = !isSetup && game.mode === 'points' ? nextJoinScore(game) : 0;
+    const player: Player = {
+      id: generateId(),
+      name: trimmed,
+      active: true,
+      totalScore: startScore,
+    };
     await persist({ ...game, players: [...game.players, player] });
     setName('');
     nameInputRef.current?.focus();
@@ -65,15 +73,39 @@ export default function PlayersScreen({ navigation, route }: Props) {
     persist({ ...game, players: game.players.filter((p) => p.id !== playerId) });
   };
 
-  const toggleActive = (player: Player) => {
-    const nextActive = !player.active;
+  const toggleActive = async (player: Player) => {
+    if (player.active) {
+      persist({
+        ...game,
+        players: game.players.map((p) => (p.id === player.id ? { ...p, active: false } : p)),
+      });
+      return;
+    }
+
+    if (game.mode === 'points' && isEliminated(game, player)) {
+      const rejoinScore = nextJoinScore(game);
+      if (!canRejoinAfterElimination(game, rejoinScore)) {
+        const drop = game.dropPoints ?? 0;
+        await notifyAction(
+          'Not enough room to rejoin',
+          `Rejoining now would start at ${rejoinScore} points, leaving less than a Drop (${drop}) before Game For (${game.maxPoints}).`
+        );
+        return;
+      }
+      persist({
+        ...game,
+        players: game.players.map((p) =>
+          p.id === player.id ? { ...p, active: true, totalScore: rejoinScore } : p
+        ),
+      });
+      return;
+    }
+
     persist({
       ...game,
-      players: game.players.map((p) => (p.id === player.id ? { ...p, active: nextActive } : p)),
+      players: game.players.map((p) => (p.id === player.id ? { ...p, active: true } : p)),
     });
   };
-
-  const isSetup = game.status === 'setup';
 
   const startGame = async () => {
     if (game.players.length < MIN_PLAYERS_TO_START) {
@@ -130,6 +162,12 @@ export default function PlayersScreen({ navigation, route }: Props) {
           </Text>
         )}
 
+        {!canRemove && (
+          <Text style={styles.warning}>
+            Players can't be removed once a points game has started — use Leave instead.
+          </Text>
+        )}
+
         <FlatList
           data={game.players}
           keyExtractor={(item) => item.id}
@@ -149,14 +187,16 @@ export default function PlayersScreen({ navigation, route }: Props) {
                   )}
                 </View>
                 <View style={styles.rowActions}>
-                  {!isSetup && !eliminated && (
+                  {!isSetup && (
                     <Pressable onPress={() => toggleActive(item)} hitSlop={10}>
                       <Text style={styles.leaveText}>{item.active ? 'Leave' : 'Rejoin'}</Text>
                     </Pressable>
                   )}
-                  <Pressable onPress={() => removePlayer(item.id)} hitSlop={10}>
-                    <Text style={styles.removeText}>Remove</Text>
-                  </Pressable>
+                  {canRemove && (
+                    <Pressable onPress={() => removePlayer(item.id)} hitSlop={10}>
+                      <Text style={styles.removeText}>Remove</Text>
+                    </Pressable>
+                  )}
                 </View>
               </View>
             );
