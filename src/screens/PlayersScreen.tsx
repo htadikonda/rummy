@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -25,6 +25,7 @@ export default function PlayersScreen({ navigation, route }: Props) {
   const { gameId } = route.params;
   const [game, setGame] = useState<Game | null>(null);
   const [name, setName] = useState('');
+  const nameInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     getGame(gameId).then(setGame);
@@ -55,6 +56,7 @@ export default function PlayersScreen({ navigation, route }: Props) {
     const player: Player = { id: generateId(), name: trimmed, active: true, totalScore: 0 };
     await persist({ ...game, players: [...game.players, player] });
     setName('');
+    nameInputRef.current?.focus();
   };
 
   const removePlayer = async (playerId: string) => {
@@ -102,6 +104,7 @@ export default function PlayersScreen({ navigation, route }: Props) {
 
         <View style={styles.addRow}>
           <TextInput
+            ref={nameInputRef}
             style={styles.input}
             placeholder={atMax ? 'Max players reached' : 'Player name'}
             placeholderTextColor={colors.textMuted}
@@ -110,6 +113,7 @@ export default function PlayersScreen({ navigation, route }: Props) {
             editable={!atMax}
             onSubmitEditing={addPlayer}
             returnKeyType="done"
+            autoFocus
           />
           <Pressable
             style={[styles.addButton, atMax && styles.addButtonDisabled]}

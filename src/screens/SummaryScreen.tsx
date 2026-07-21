@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -53,25 +53,27 @@ export default function SummaryScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{game.name}</Text>
-        <Text style={styles.subtitle}>Final Results · {game.rounds.length} rounds played</Text>
-      </View>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={styles.header}>
+          <Text style={styles.title}>{game.name}</Text>
+          <Text style={styles.subtitle}>Final Results · {game.rounds.length} rounds played</Text>
+        </View>
 
-      {game.mode === 'cash' ? (
-        <CashSummary game={game} rateInput={rateInput} onRateChange={updateRate} />
-      ) : (
-        <PointsSummary game={game} />
-      )}
+        {game.mode === 'cash' ? (
+          <CashSummary game={game} rateInput={rateInput} onRateChange={updateRate} />
+        ) : (
+          <PointsSummary game={game} />
+        )}
 
-      <View style={styles.footerButtons}>
-        <Pressable style={styles.playAgainButton} onPress={playAgain}>
-          <Text style={styles.playAgainButtonText}>Play Again · Same Players</Text>
-        </Pressable>
-        <Pressable style={styles.homeButton} onPress={() => navigation.popToTop()}>
-          <Text style={styles.homeButtonText}>Back to Home</Text>
-        </Pressable>
-      </View>
+        <View style={styles.footerButtons}>
+          <Pressable style={styles.playAgainButton} onPress={playAgain}>
+            <Text style={styles.playAgainButtonText}>Play Again · Same Players</Text>
+          </Pressable>
+          <Pressable style={styles.homeButton} onPress={() => navigation.popToTop()}>
+            <Text style={styles.homeButtonText}>Back to Home</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -99,51 +101,41 @@ function CashSummary({
       />
 
       <Text style={styles.sectionLabel}>Player Totals</Text>
-      <FlatList
-        data={lines}
-        keyExtractor={(item) => item.playerId}
-        style={{ maxHeight: 260 }}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <Text style={styles.rowName}>{item.playerName}</Text>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.rowPoints}>{item.totalScore} pts</Text>
-              <Text
-                style={[
-                  styles.rowAmount,
-                  { color: item.amount >= 0 ? colors.primary : colors.danger },
-                ]}
-              >
-                {item.amount >= 0 ? '+' : '-'}${Math.abs(item.amount).toFixed(2)}
-              </Text>
-            </View>
+      {lines.map((item) => (
+        <View key={item.playerId} style={styles.row}>
+          <Text style={styles.rowName}>{item.playerName}</Text>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={styles.rowPoints}>{item.totalScore} pts</Text>
+            <Text
+              style={[
+                styles.rowAmount,
+                { color: item.amount >= 0 ? colors.primary : colors.danger },
+              ]}
+            >
+              {item.amount >= 0 ? '+' : '-'}${Math.abs(item.amount).toFixed(2)}
+            </Text>
           </View>
-        )}
-      />
+        </View>
+      ))}
 
       <Text style={styles.sectionLabel}>Settle Up</Text>
       {payments.length === 0 ? (
         <Text style={styles.helper}>Nothing to settle.</Text>
       ) : (
-        <FlatList
-          data={payments}
-          keyExtractor={(item, index) => `${item.fromPlayerId}-${item.toPlayerId}-${index}`}
-          style={{ maxHeight: 200 }}
-          renderItem={({ item }) => (
-            <View style={styles.paymentRow}>
-              <Text style={styles.paymentText}>
-                <Text style={{ color: colors.danger, fontWeight: '700' }}>
-                  {item.fromPlayerName}
-                </Text>{' '}
-                pays{' '}
-                <Text style={{ color: colors.primary, fontWeight: '700' }}>
-                  {item.toPlayerName}
-                </Text>
+        payments.map((item, index) => (
+          <View key={`${item.fromPlayerId}-${item.toPlayerId}-${index}`} style={styles.paymentRow}>
+            <Text style={styles.paymentText}>
+              <Text style={{ color: colors.danger, fontWeight: '700' }}>
+                {item.fromPlayerName}
+              </Text>{' '}
+              pays{' '}
+              <Text style={{ color: colors.primary, fontWeight: '700' }}>
+                {item.toPlayerName}
               </Text>
-              <Text style={styles.paymentAmount}>${item.amount.toFixed(2)}</Text>
-            </View>
-          )}
-        />
+            </Text>
+            <Text style={styles.paymentAmount}>${item.amount.toFixed(2)}</Text>
+          </View>
+        ))
       )}
     </>
   );
@@ -162,25 +154,22 @@ function PointsSummary({ game }: { game: Game }) {
         </View>
       )}
       <Text style={styles.sectionLabel}>Final Standings</Text>
-      <FlatList
-        data={standings}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <View style={[styles.row, !item.active && { opacity: 0.5 }]}>
-            <Text style={styles.rowName}>
-              {index + 1}. {item.name}
-              {!item.active ? (isEliminated(game, item) ? '  · eliminated' : '  · left') : ''}
-            </Text>
-            <Text style={styles.rowPoints}>{item.totalScore} pts</Text>
-          </View>
-        )}
-      />
+      {standings.map((item, index) => (
+        <View key={item.id} style={[styles.row, !item.active && { opacity: 0.5 }]}>
+          <Text style={styles.rowName}>
+            {index + 1}. {item.name}
+            {!item.active ? (isEliminated(game, item) ? '  · eliminated' : '  · left') : ''}
+          </Text>
+          <Text style={styles.rowPoints}>{item.totalScore} pts</Text>
+        </View>
+      ))}
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, paddingHorizontal: 20 },
+  container: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingHorizontal: 20, paddingBottom: 24 },
   header: { marginTop: 12, marginBottom: 16 },
   title: { fontSize: 24, fontWeight: '800', color: colors.text },
   subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 4 },
@@ -241,7 +230,7 @@ const styles = StyleSheet.create({
   },
   winnerBannerLabel: { fontSize: 14, fontWeight: '700', color: '#062117' },
   winnerBannerName: { fontSize: 22, fontWeight: '800', color: '#062117', marginTop: 4 },
-  footerButtons: { marginVertical: 16, gap: 10 },
+  footerButtons: { marginTop: 16, gap: 10 },
   playAgainButton: {
     backgroundColor: colors.primary,
     borderRadius: 14,
