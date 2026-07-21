@@ -1,19 +1,27 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { Game, Player } from '../types/game';
 import { getGame, saveGame } from '../storage/gameStorage';
-import { isEliminated } from '../utils/scoring';
+import {
+  computeCashSettlement,
+  computeSettlementPayments,
+  isEliminated,
+  Payment,
+} from '../utils/scoring';
+import { confirmAction } from '../utils/dialog';
 import { colors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GameBoard'>;
+type Tab = 'standings' | 'payments' | 'rounds';
 
 export default function GameBoardScreen({ navigation, route }: Props) {
   const { gameId } = route.params;
   const [game, setGame] = useState<Game | null>(null);
+  const [tab, setTab] = useState<Tab>('standings');
 
   useFocusEffect(
     useCallback(() => {
@@ -40,18 +48,19 @@ export default function GameBoardScreen({ navigation, route }: Props) {
     return game.mode === 'cash' ? b.totalScore - a.totalScore : a.totalScore - b.totalScore;
   });
 
-  const endCashGame = () => {
-    Alert.alert('End game and settle up?', 'This locks in the current totals.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'End & Settle',
-        onPress: async () => {
-          const updated: Game = { ...game, status: 'completed', completedAt: Date.now() };
-          await saveGame(updated);
-          navigation.replace('Summary', { gameId: game.id });
-        },
-      },
-    ]);
+  const settlementLines = game.mode === 'cash' ? computeCashSettlement(game) : [];
+  const payments = game.mode === 'cash' ? computeSettlementPayments(settlementLines) : [];
+
+  const endCashGame = async () => {
+    const ok = await confirmAction({
+      title: 'End game and settle up?',
+      message: 'This locks in the current totals.',
+      confirmLabel: 'End & Settle',
+    });
+    if (!ok) return;
+    const updated: Game = { ...game, status: 'completed', completedAt: Date.now() };
+    await saveGame(updated);
+    navigation.replace('Summary', { gameId: game.id });
   };
 
   return (
@@ -86,48 +95,106 @@ export default function GameBoardScreen({ navigation, route }: Props) {
         </Pressable>
       )}
 
-      <Text style={styles.sectionLabel}>Standings</Text>
-      <FlatList
-        data={standings}
-        keyExtractor={(item) => item.id}
-        style={{ maxHeight: '38%' }}
-        contentContainerStyle={{ paddingBottom: 12 }}
-        renderItem={({ item, index }) => <StandingRow player={item} rank={index + 1} game={game} />}
-      />
-
-      <Text style={styles.sectionLabel}>Rounds ({game.rounds.length})</Text>
-      <FlatList
-        data={[...game.rounds].reverse()}
-        keyExtractor={(item) => item.id}
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        ListEmptyComponent={<Text style={styles.helper}>No rounds recorded yet.</Text>}
-        renderItem={({ item }) => {
-          const winner = item.entries.find((e) => e.isWinner);
-          const winnerPlayer = game.players.find((p) => p.id === winner?.playerId);
-          return (
-            <View style={styles.roundCard}>
-              <Text style={styles.roundTitle}>
-                Round {item.roundNumber} · {winnerPlayer?.name ?? 'Unknown'} won
+      {game.mode === 'cash' && (
+        <View style={styles.tabRow}>
+          {(
+            [
+              ['standings', 'Standings'],
+              ['payments', 'Payments'],
+              ['rounds', `Rounds (${game.rounds.length})`],
+            ] as [Tab, string][]
+          ).map(([t, label]) => (
+            <Pressable
+              key={t}
+              style={[styles.tabButton, tab === t && styles.tabButtonActive]}
+              onPress={() => setTab(t)}
+            >
+              <Text style={[styles.tabButtonText, tab === t && styles.tabButtonTextActive]}>
+                {label}
               </Text>
-              <View style={styles.roundEntries}>
-                {item.entries.map((entry) => {
-                  const player = game.players.find((p) => p.id === entry.playerId);
-                  return (
-                    <Text key={entry.playerId} style={styles.roundEntryText}>
-                      {player?.name ?? '—'}:{' '}
-                      <Text style={{ color: entry.points >= 0 ? colors.primary : colors.danger }}>
-                        {entry.points >= 0 ? '+' : ''}
-                        {entry.points}
-                      </Text>
-                    </Text>
-                  );
-                })}
-              </View>
-            </View>
-          );
-        }}
-      />
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {(game.mode !== 'cash' || tab === 'standings') && (
+        <>
+          <Text style={styles.sectionLabel}>Standings</Text>
+          <FlatList
+            data={standings}
+            keyExtractor={(item) => item.id}
+            style={game.mode === 'cash' ? { flex: 1 } : { maxHeight: '38%' }}
+            contentContainerStyle={{ paddingBottom: game.mode === 'cash' ? 100 : 12 }}
+            renderItem={({ item, index }) => (
+              <StandingRow player={item} rank={index + 1} game={game} />
+            )}
+          />
+        </>
+      )}
+
+      {game.mode === 'cash' && tab === 'payments' && (
+        <FlatList
+          data={payments}
+          keyExtractor={(item, index) => `${item.fromPlayerId}-${item.toPlayerId}-${index}`}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          ListHeaderComponent={
+            payments.length > 0 ? (
+              <Text style={styles.helper}>
+                {settlementLines.filter((l) => l.amount < 0).length} player
+                {settlementLines.filter((l) => l.amount < 0).length === 1 ? '' : 's'} owe ·{' '}
+                {settlementLines.filter((l) => l.amount > 0).length} player
+                {settlementLines.filter((l) => l.amount > 0).length === 1 ? '' : 's'} owed ·{' '}
+                {payments.length} transfer{payments.length === 1 ? '' : 's'}
+              </Text>
+            ) : null
+          }
+          ListEmptyComponent={
+            <Text style={styles.helper}>No payments needed yet — everyone's even.</Text>
+          }
+          renderItem={({ item }) => <PaymentRow payment={item} />}
+        />
+      )}
+
+      {(game.mode !== 'cash' || tab === 'rounds') && (
+        <>
+          {game.mode !== 'cash' && <Text style={styles.sectionLabel}>Rounds ({game.rounds.length})</Text>}
+          <FlatList
+            data={[...game.rounds].reverse()}
+            keyExtractor={(item) => item.id}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            ListEmptyComponent={<Text style={styles.helper}>No rounds recorded yet.</Text>}
+            renderItem={({ item }) => {
+              const winner = item.entries.find((e) => e.isWinner);
+              const winnerPlayer = game.players.find((p) => p.id === winner?.playerId);
+              return (
+                <View style={styles.roundCard}>
+                  <Text style={styles.roundTitle}>
+                    Round {item.roundNumber} · {winnerPlayer?.name ?? 'Unknown'} won
+                  </Text>
+                  <View style={styles.roundEntries}>
+                    {item.entries.map((entry) => {
+                      const player = game.players.find((p) => p.id === entry.playerId);
+                      return (
+                        <Text key={entry.playerId} style={styles.roundEntryText}>
+                          {player?.name ?? '—'}:{' '}
+                          <Text
+                            style={{ color: entry.points >= 0 ? colors.primary : colors.danger }}
+                          >
+                            {entry.points >= 0 ? '+' : ''}
+                            {entry.points}
+                          </Text>
+                        </Text>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            }}
+          />
+        </>
+      )}
 
       {game.status !== 'completed' && (
         <View style={styles.footer}>
@@ -174,6 +241,19 @@ function StandingRow({ player, rank, game }: { player: Player; rank: number; gam
   );
 }
 
+function PaymentRow({ payment }: { payment: Payment }) {
+  return (
+    <View style={styles.paymentRow}>
+      <Text style={styles.paymentText}>
+        <Text style={{ color: colors.danger, fontWeight: '700' }}>{payment.fromPlayerName}</Text>
+        {' pays '}
+        <Text style={{ color: colors.primary, fontWeight: '700' }}>{payment.toPlayerName}</Text>
+      </Text>
+      <Text style={styles.paymentAmount}>${payment.amount.toFixed(2)}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, paddingHorizontal: 20 },
   header: { marginTop: 12, marginBottom: 12 },
@@ -196,6 +276,32 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   completeBannerText: { color: '#062117', fontWeight: '700', textAlign: 'center' },
+  tabRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tabButton: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  tabButtonActive: { backgroundColor: colors.primary },
+  tabButtonText: { color: colors.textMuted, fontWeight: '700', fontSize: 12 },
+  tabButtonTextActive: { color: '#062117' },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+    marginBottom: 6,
+  },
+  paymentText: { color: colors.text, fontSize: 14, flex: 1, marginRight: 8 },
+  paymentAmount: { color: colors.gold, fontSize: 15, fontWeight: '800' },
   sectionLabel: {
     color: colors.textMuted,
     fontSize: 12,
