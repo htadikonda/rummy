@@ -1,4 +1,11 @@
-import { DEFAULT_DROP_POINTS, Game, Player, Round, RoundEntry } from '../types/game';
+import {
+  DEFAULT_DROP_POINTS,
+  DEFAULT_MAX_POINTS,
+  Game,
+  Player,
+  Round,
+  RoundEntry,
+} from '../types/game';
 import { generateId } from './id';
 
 export function isEliminated(game: Game, player: Player): boolean {
@@ -133,6 +140,54 @@ export function computeSettlementPayments(lines: SettlementLine[]): Payment[] {
     if (creditor.amount <= 0.005) j += 1;
   }
   return payments;
+}
+
+export interface PointsPayoutLine {
+  playerId: string;
+  playerName: string;
+  active: boolean;
+  dropsRemaining: number;
+  contributed: number;
+  payout: number;
+  net: number;
+}
+
+// Drops remaining is how many more Drop-sized (dropPoints) penalties a player
+// could take before hitting Game For - i.e. how safe their position is.
+export function dropsRemaining(game: Game, player: Player): number {
+  if (!player.active || game.maxPoints == null) return 0;
+  const drop = game.dropPoints ?? DEFAULT_DROP_POINTS;
+  const maxPoints = game.maxPoints ?? DEFAULT_MAX_POINTS;
+  return Math.max(0, Math.floor((maxPoints - player.totalScore) / drop));
+}
+
+// The buy-in pool is split among the players still active when the game ends,
+// weighted by each one's drops remaining (a proxy for how strong their
+// position is) - each drop remaining is worth one equal share of the pool.
+export function computePointsPayout(game: Game): PointsPayoutLine[] {
+  const buyIn = game.buyIn ?? 0;
+  const totalPool = game.players.reduce((sum, p) => sum + p.buyIns, 0) * buyIn;
+  const drops = game.players.map((p) => dropsRemaining(game, p));
+  const totalDropUnits = drops.reduce((sum, d) => sum + d, 0);
+  const activeCount = game.players.filter((p) => p.active).length;
+
+  return game.players.map((player, i) => {
+    const contributed = player.buyIns * buyIn;
+    let payout = 0;
+    if (player.active) {
+      payout =
+        totalDropUnits > 0 ? (drops[i] / totalDropUnits) * totalPool : totalPool / activeCount;
+    }
+    return {
+      playerId: player.id,
+      playerName: player.name,
+      active: player.active,
+      dropsRemaining: drops[i],
+      contributed,
+      payout,
+      net: payout - contributed,
+    };
+  });
 }
 
 export function pointsStandings(game: Game) {

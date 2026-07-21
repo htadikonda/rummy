@@ -51,10 +51,13 @@ export default function GameBoardScreen({ navigation, route }: Props) {
   const settlementLines = game.mode === 'cash' ? computeCashSettlement(game) : [];
   const payments = game.mode === 'cash' ? computeSettlementPayments(settlementLines) : [];
 
-  const endCashGame = async () => {
+  const endGame = async () => {
     const ok = await confirmAction({
       title: 'End game and settle up?',
-      message: 'This locks in the current totals.',
+      message:
+        game.mode === 'cash'
+          ? 'This locks in the current totals.'
+          : 'This locks in the current totals and splits the buy-in pool among the remaining players.',
       confirmLabel: 'End & Settle',
     });
     if (!ok) return;
@@ -206,11 +209,9 @@ export default function GameBoardScreen({ navigation, route }: Props) {
           >
             <Text style={styles.addRoundButtonText}>+ Add Round</Text>
           </Pressable>
-          {game.mode === 'cash' && (
-            <Pressable style={styles.endButton} onPress={endCashGame}>
-              <Text style={styles.endButtonText}>End Game</Text>
-            </Pressable>
-          )}
+          <Pressable style={styles.endButton} onPress={endGame}>
+            <Text style={styles.endButtonText}>End Game</Text>
+          </Pressable>
         </View>
       )}
     </SafeAreaView>

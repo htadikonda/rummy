@@ -7,6 +7,7 @@ import { Game } from '../types/game';
 import { getGame, saveGame } from '../storage/gameStorage';
 import {
   computeCashSettlement,
+  computePointsPayout,
   computeSettlementPayments,
   createRematch,
   isEliminated,
@@ -145,8 +146,9 @@ function PointsSummary({ game }: { game: Game }) {
   const standings = pointsStandings(game);
   const winner = standings.find((p) => p.active) ?? standings[0];
   const hasBuyIn = game.buyIn != null && game.buyIn > 0;
-  const totalBuyIns = standings.reduce((sum, p) => sum + p.buyIns, 0);
+  const totalBuyIns = game.players.reduce((sum, p) => sum + p.buyIns, 0);
   const totalPot = hasBuyIn ? totalBuyIns * (game.buyIn as number) : 0;
+  const payoutByPlayerId = new Map(computePointsPayout(game).map((p) => [p.playerId, p]));
 
   return (
     <>
@@ -169,19 +171,37 @@ function PointsSummary({ game }: { game: Game }) {
 
       {hasBuyIn && (
         <>
-          <Text style={styles.sectionLabel}>Buy-Ins</Text>
+          <Text style={styles.sectionLabel}>Payments</Text>
           <Text style={styles.helper}>
             Total pot: ${totalPot.toFixed(2)} ({totalBuyIns} buy-in{totalBuyIns === 1 ? '' : 's'}{' '}
-            × ${game.buyIn})
+            × ${game.buyIn}), split among remaining players by drops left before Game For.
           </Text>
-          {standings.map((item) => (
-            <View key={item.id} style={styles.row}>
-              <Text style={styles.rowName}>{item.name}</Text>
-              <Text style={styles.rowPoints}>
-                {item.buyIns} × ${game.buyIn} = ${(item.buyIns * (game.buyIn as number)).toFixed(2)}
-              </Text>
-            </View>
-          ))}
+          {standings.map((item) => {
+            const payout = payoutByPlayerId.get(item.id);
+            if (!payout) return null;
+            return (
+              <View key={item.id} style={styles.row}>
+                <View>
+                  <Text style={styles.rowName}>{item.name}</Text>
+                  <Text style={styles.rowPoints}>
+                    {item.active
+                      ? `${payout.dropsRemaining} drop${payout.dropsRemaining === 1 ? '' : 's'} remaining`
+                      : isEliminated(game, item)
+                        ? 'Eliminated'
+                        : 'Left'}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.rowAmount,
+                    { color: payout.net >= 0 ? colors.primary : colors.danger },
+                  ]}
+                >
+                  {payout.net >= 0 ? '+' : '-'}${Math.abs(payout.net).toFixed(2)}
+                </Text>
+              </View>
+            );
+          })}
         </>
       )}
     </>
