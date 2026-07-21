@@ -115,16 +115,46 @@ export default function AddRoundScreen({ navigation, route }: Props) {
                       : 'Gets +0 points'}
                   </Text>
                 ) : (
-                  <TextInput
-                    style={styles.input}
-                    keyboardType="number-pad"
-                    placeholder="Points"
-                    placeholderTextColor={colors.textMuted}
-                    value={losses[player.id] ?? ''}
-                    onChangeText={(text) =>
-                      setLosses((prev) => ({ ...prev, [player.id]: text }))
-                    }
-                  />
+                  <>
+                    <TextInput
+                      style={styles.input}
+                      keyboardType="number-pad"
+                      placeholder="Points"
+                      placeholderTextColor={colors.textMuted}
+                      value={losses[player.id] ?? ''}
+                      onChangeText={(text) =>
+                        setLosses((prev) => ({ ...prev, [player.id]: text }))
+                      }
+                    />
+                    {game.mode === 'points' && game.dropPoints != null && (
+                      <View style={styles.chipRow}>
+                        {(
+                          [
+                            ['Drop', game.dropPoints],
+                            ['Middle Drop', game.middleDropPoints],
+                            ['Full Count', game.fullCountPoints],
+                          ] as [string, number | undefined][]
+                        )
+                          .filter((entry): entry is [string, number] => entry[1] != null)
+                          .map(([label, value]) => {
+                            const active = losses[player.id] === String(value);
+                            return (
+                              <Pressable
+                                key={label}
+                                style={[styles.chip, active && styles.chipActive]}
+                                onPress={() =>
+                                  setLosses((prev) => ({ ...prev, [player.id]: String(value) }))
+                                }
+                              >
+                                <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                                  {label} · {value}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                      </View>
+                    )}
+                  </>
                 )}
               </View>
             );
@@ -181,6 +211,18 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
   },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  chip: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  chipTextActive: { color: '#062117' },
   error: { color: colors.danger, marginTop: 4, marginBottom: 12, fontSize: 13 },
   saveButton: {
     backgroundColor: colors.primary,

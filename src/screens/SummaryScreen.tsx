@@ -144,6 +144,9 @@ function CashSummary({
 function PointsSummary({ game }: { game: Game }) {
   const standings = pointsStandings(game);
   const winner = standings.find((p) => p.active) ?? standings[0];
+  const hasBuyIn = game.buyIn != null && game.buyIn > 0;
+  const totalBuyIns = standings.reduce((sum, p) => sum + p.buyIns, 0);
+  const totalPot = hasBuyIn ? totalBuyIns * (game.buyIn as number) : 0;
 
   return (
     <>
@@ -163,6 +166,24 @@ function PointsSummary({ game }: { game: Game }) {
           <Text style={styles.rowPoints}>{item.totalScore} pts</Text>
         </View>
       ))}
+
+      {hasBuyIn && (
+        <>
+          <Text style={styles.sectionLabel}>Buy-Ins</Text>
+          <Text style={styles.helper}>
+            Total pot: ${totalPot.toFixed(2)} ({totalBuyIns} buy-in{totalBuyIns === 1 ? '' : 's'}{' '}
+            × ${game.buyIn})
+          </Text>
+          {standings.map((item) => (
+            <View key={item.id} style={styles.row}>
+              <Text style={styles.rowName}>{item.name}</Text>
+              <Text style={styles.rowPoints}>
+                {item.buyIns} × ${game.buyIn} = ${(item.buyIns * (game.buyIn as number)).toFixed(2)}
+              </Text>
+            </View>
+          ))}
+        </>
+      )}
     </>
   );
 }

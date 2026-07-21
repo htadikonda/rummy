@@ -72,7 +72,9 @@ export default function GameBoardScreen({ navigation, route }: Props) {
             <Text style={styles.subtitle}>
               {game.mode === 'cash'
                 ? `Cash Game · $${game.dollarPerPoint}/point`
-                : `Points Game · max ${game.maxPoints}`}
+                : `Points Game · Game For ${game.maxPoints}${
+                    game.buyIn ? ` · $${game.buyIn} buy-in` : ''
+                  }`}
             </Text>
           </View>
           {game.status !== 'completed' && (

@@ -1,8 +1,23 @@
-import { Game, Player, Round, RoundEntry } from '../types/game';
+import { DEFAULT_DROP_POINTS, Game, Player, Round, RoundEntry } from '../types/game';
 import { generateId } from './id';
 
 export function isEliminated(game: Game, player: Player): boolean {
   return game.mode === 'points' && game.maxPoints != null && player.totalScore >= game.maxPoints;
+}
+
+// A player joining (or rejoining) a points game mid-way can't start with fewer
+// points than anyone currently playing, so they take the current worst score + 1.
+export function nextJoinScore(game: Game): number {
+  const activeScores = game.players.filter((p) => p.active).map((p) => p.totalScore);
+  return activeScores.length > 0 ? Math.max(...activeScores) + 1 : 0;
+}
+
+// An eliminated player can only rejoin if doing so leaves at least one Drop's
+// worth of room before hitting the elimination threshold again.
+export function canRejoinAfterElimination(game: Game, rejoinScore: number): boolean {
+  if (game.maxPoints == null) return true;
+  const drop = game.dropPoints ?? DEFAULT_DROP_POINTS;
+  return game.maxPoints - rejoinScore >= drop;
 }
 
 export interface RoundInput {
@@ -132,7 +147,7 @@ export function createRematch(game: Game): Game {
     ...game,
     id: generateId(),
     name: game.name.endsWith(' (Rematch)') ? game.name : `${game.name} (Rematch)`,
-    players: game.players.map((p) => ({ ...p, totalScore: 0, active: true })),
+    players: game.players.map((p) => ({ ...p, totalScore: 0, active: true, buyIns: 1 })),
     rounds: [],
     status: 'active',
     createdAt: Date.now(),

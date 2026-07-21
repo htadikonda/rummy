@@ -7,6 +7,7 @@ export interface Player {
   name: string;
   active: boolean;
   totalScore: number;
+  buyIns: number;
 }
 
 export interface RoundEntry {
@@ -27,6 +28,10 @@ export interface Game {
   name: string;
   mode: GameMode;
   maxPoints?: number;
+  dropPoints?: number;
+  middleDropPoints?: number;
+  fullCountPoints?: number;
+  buyIn?: number;
   dollarPerPoint?: number;
   players: Player[];
   rounds: Round[];
@@ -37,3 +42,8 @@ export interface Game {
 
 export const MAX_PLAYERS = 12;
 export const MIN_PLAYERS_TO_START = 2;
+
+export const DEFAULT_MAX_POINTS = 251;
+export const DEFAULT_DROP_POINTS = 25;
+export const DEFAULT_MIDDLE_DROP_POINTS = 50;
+export const DEFAULT_FULL_COUNT_POINTS = 80;
