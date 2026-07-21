@@ -12,7 +12,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Game, GameMode } from '../types/game';
+import {
+  DEFAULT_DROP_POINTS,
+  DEFAULT_FULL_COUNT_POINTS,
+  DEFAULT_MAX_POINTS,
+  DEFAULT_MIDDLE_DROP_POINTS,
+  Game,
+  GameMode,
+} from '../types/game';
 import { saveGame } from '../storage/gameStorage';
 import { generateId } from '../utils/id';
 import { colors } from '../theme/colors';
@@ -22,7 +29,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'HostGame'>;
 export default function HostGameScreen({ navigation }: Props) {
   const [name, setName] = useState('');
   const [mode, setMode] = useState<GameMode>('points');
-  const [maxPoints, setMaxPoints] = useState('201');
+  const [maxPoints, setMaxPoints] = useState(String(DEFAULT_MAX_POINTS));
+  const [dropPoints, setDropPoints] = useState(String(DEFAULT_DROP_POINTS));
+  const [middleDropPoints, setMiddleDropPoints] = useState(String(DEFAULT_MIDDLE_DROP_POINTS));
+  const [fullCountPoints, setFullCountPoints] = useState(String(DEFAULT_FULL_COUNT_POINTS));
   const [dollarPerPoint, setDollarPerPoint] = useState('1');
   const [error, setError] = useState<string | null>(null);
 
@@ -30,10 +40,18 @@ export default function HostGameScreen({ navigation }: Props) {
     setError(null);
 
     if (mode === 'points') {
-      const parsed = Number(maxPoints);
-      if (!Number.isFinite(parsed) || parsed <= 0) {
-        setError('Enter a valid max points value.');
-        return;
+      const fields: [string, string][] = [
+        ['Game For', maxPoints],
+        ['Drop', dropPoints],
+        ['Middle Drop', middleDropPoints],
+        ['Full Count', fullCountPoints],
+      ];
+      for (const [label, value] of fields) {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+          setError(`Enter a valid ${label} value.`);
+          return;
+        }
       }
     } else {
       const parsed = Number(dollarPerPoint);
@@ -48,6 +66,9 @@ export default function HostGameScreen({ navigation }: Props) {
       name: name.trim() || defaultGameName(mode),
       mode,
       maxPoints: mode === 'points' ? Number(maxPoints) : undefined,
+      dropPoints: mode === 'points' ? Number(dropPoints) : undefined,
+      middleDropPoints: mode === 'points' ? Number(middleDropPoints) : undefined,
+      fullCountPoints: mode === 'points' ? Number(fullCountPoints) : undefined,
       dollarPerPoint: mode === 'cash' ? Number(dollarPerPoint) : undefined,
       players: [],
       rounds: [],
@@ -101,18 +122,56 @@ export default function HostGameScreen({ navigation }: Props) {
 
           {mode === 'points' ? (
             <View>
-              <Text style={styles.label}>Max points</Text>
+              <Text style={styles.label}>Default Points</Text>
               <Text style={styles.helper}>
-                Players are eliminated once their total reaches this value.
+                Game For is the total at which a player is eliminated. Drop, Middle Drop, and
+                Full Count are quick-entry presets you'll see while scoring each round.
               </Text>
-              <TextInput
-                style={styles.input}
-                keyboardType="number-pad"
-                value={maxPoints}
-                onChangeText={setMaxPoints}
-                placeholder="201"
-                placeholderTextColor={colors.textMuted}
-              />
+
+              <View style={styles.pointsRow}>
+                <Text style={styles.pointsLabel}>Game For</Text>
+                <TextInput
+                  style={styles.pointsInput}
+                  keyboardType="number-pad"
+                  value={maxPoints}
+                  onChangeText={setMaxPoints}
+                  placeholder={String(DEFAULT_MAX_POINTS)}
+                  placeholderTextColor={colors.textMuted}
+                />
+              </View>
+              <View style={styles.pointsRow}>
+                <Text style={styles.pointsLabel}>Drop</Text>
+                <TextInput
+                  style={styles.pointsInput}
+                  keyboardType="number-pad"
+                  value={dropPoints}
+                  onChangeText={setDropPoints}
+                  placeholder={String(DEFAULT_DROP_POINTS)}
+                  placeholderTextColor={colors.textMuted}
+                />
+              </View>
+              <View style={styles.pointsRow}>
+                <Text style={styles.pointsLabel}>Middle Drop</Text>
+                <TextInput
+                  style={styles.pointsInput}
+                  keyboardType="number-pad"
+                  value={middleDropPoints}
+                  onChangeText={setMiddleDropPoints}
+                  placeholder={String(DEFAULT_MIDDLE_DROP_POINTS)}
+                  placeholderTextColor={colors.textMuted}
+                />
+              </View>
+              <View style={[styles.pointsRow, { marginBottom: 20 }]}>
+                <Text style={styles.pointsLabel}>Full Count</Text>
+                <TextInput
+                  style={styles.pointsInput}
+                  keyboardType="number-pad"
+                  value={fullCountPoints}
+                  onChangeText={setFullCountPoints}
+                  placeholder={String(DEFAULT_FULL_COUNT_POINTS)}
+                  placeholderTextColor={colors.textMuted}
+                />
+              </View>
             </View>
           ) : (
             <View>
@@ -163,6 +222,28 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     marginBottom: 20,
+  },
+  pointsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 8,
+    gap: 12,
+  },
+  pointsLabel: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  pointsInput: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'right',
+    minWidth: 70,
+    paddingVertical: 4,
   },
   segment: {
     flexDirection: 'row',
